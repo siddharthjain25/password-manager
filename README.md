@@ -15,6 +15,9 @@ This is a simple and secure password manager script written in Bash. It allows y
 - `SQLite`: The script uses SQLite as the database for storing account details.
 - `OpenSSL`: OpenSSL is used for encrypting and decrypting passwords.
 
+# For single-line installation
+    curl -L https://raw.githubusercontent.com/siddharthjain25/password-manager/main/install.sh | sudo bash
+
 # Setup
 Download and Install Dependencies: Ensure that SQLite and OpenSSL are installed on your system. You can install them using your package manager:
 

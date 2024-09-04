@@ -86,6 +86,9 @@ This will display a list of all account IDs and their associated account names.
 - `Master Key`: The encryption key is not saved in the script or the database, providing an additional layer of security.
 - `Database Storage`: All account details, except for the encrypted password, are stored in plain text in the SQLite database. Ensure that the database file (data.db) is stored securely and with appropriate permissions.
 
+# Database save location
+    $Home/.config/sanji-pm-data.db
+
 # Database Structure
 The SQLite database consists of a single table accounts with the following schema:
 

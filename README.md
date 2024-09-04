@@ -30,7 +30,7 @@ Download and Install Dependencies: Ensure that SQLite and OpenSSL are installed 
     cd password-manager``
 
 ## Make the Script Executable:
-    chmod +x password_manager.sh
+    chmod +x sanji_password_manager.sh
 
 Initialize the Database: The script will automatically create the SQLite database (data.db) in the specified directory when it runs for the first time.
 
@@ -39,42 +39,42 @@ You can perform various operations using this script by providing the correspond
 
 General Syntax
 
-    ./password_manager.sh {add|get|update|delete|list}
+    ./sanji_password_manager.sh {add|get|update|delete|list}
     # Replace {add|get|update|delete|list} with the action you want to perform.
 
 # Examples
 ### Add a New Account
 To add a new account with its associated details:
 
-    ./password_manager.sh add
+    ./sanji_password_manager.sh add
 
 You will be prompted to enter the account details (account name, email, username, mobile number, notes, and password). After entering the details, you will also need to provide an encryption key to encrypt the password.
 
 ### Retrieve an Account
 To retrieve and decrypt an account's details by its ID:
 
-    ./password_manager.sh get
+    ./sanji_password_manager.sh get
 
 You will be shown a list of account IDs. After entering the account ID, you will be prompted for the encryption key to decrypt and display the details.
 
 ### Update an Account
 To update an existing account's details:
 
-    ./password_manager.sh update
+    ./sanji_password_manager.sh update
 
 You will be shown a list of account IDs. After entering the account ID, the script will display the current details for that account, and you will be prompted to update each field. You can press Enter to keep the current value.
 
 ### Delete an Account
 To delete an account by its ID:
 
-    ./password_manager.sh delete
+    ./sanji_password_manager.sh delete
 
 You will be shown a list of account IDs. After entering the account ID, the account will be deleted from the database.
 
 ### List All Accounts
 To view a list of all saved accounts:
 
-    ./password_manager.sh list
+    ./sanji_password_manager.sh list
 
 This will display a list of all account IDs and their associated account names.
 

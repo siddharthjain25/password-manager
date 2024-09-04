@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Path for the SQLite database file
-db_file="/path/to/your/data.db"
+# Path for the SQLite database file && If your thinking about Blackleg Sanji from OnePiece then you are correct.
+db_file="$HOME/.config/sanji-pm-data.db"
 
 # Function to initialize the SQLite database
 initialize_db() {

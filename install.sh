@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Set the download URL for the binary file
-BINARY_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0/sanjipm.amd64"
-BINARY_NAME="sanjipm"
+# Base URL for the binary files
+BASE_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0"
 
 # Set the target installation directory
 INSTALL_DIR="/usr/bin"
@@ -13,8 +12,33 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# Detect the architecture
+ARCH=$(uname -m)
+
+case "$ARCH" in
+  x86_64)
+    BINARY_NAME="sanjipm.amd64"
+    ;;
+  aarch64)
+    BINARY_NAME="sanjipm.arm64"
+    ;;
+  armv7l)
+    BINARY_NAME="sanjipm.armhf"
+    ;;
+  i386)
+    BINARY_NAME="sanjipm.i386"
+    ;;
+  *)
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+esac
+
+# Full URL for the binary
+BINARY_URL="$BASE_URL/$BINARY_NAME"
+
 # Download the binary file
-echo "Downloading $BINARY_NAME..."
+echo "Downloading $BINARY_NAME for $ARCH architecture..."
 curl -L -o "$BINARY_NAME" "$BINARY_URL"
 
 # Check if the download was successful
@@ -38,4 +62,4 @@ else
   exit 1
 fi
 
-echo "Installation complete. You can now run the tool using '$BINARY_NAME'."
+echo "Installation complete. You can now run the tool using 'sanjipm'."

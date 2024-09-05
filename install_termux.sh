@@ -2,7 +2,7 @@
 
 # Set the download URL for the binary file
 BINARY_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0/sanjipmt"
-BINARY_NAME="sanjipmt"
+BINARY_NAME="sanjipm"
 
 # Set the target installation directory
 INSTALL_DIR="/data/data/com.termux/files/usr/bin"

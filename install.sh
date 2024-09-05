@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set the download URL for the binary file
-BINARY_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0/sanjipm"
+BINARY_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0/sanjipm.amd64"
 BINARY_NAME="sanjipm"
 
 # Set the target installation directory

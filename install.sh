@@ -6,6 +6,9 @@ BASE_URL="https://github.com/siddharthjain25/password-manager/releases/download/
 # Set the target installation directory
 INSTALL_DIR="/usr/bin"
 
+# Set the final binary name after installation
+FINAL_BINARY_NAME="sanjipm"
+
 # Ensure the script is run with root privileges
 if [ "$EUID" -ne 0 ]; then
   echo "Please run as root or use sudo."
@@ -47,19 +50,19 @@ if [ ! -f "$BINARY_NAME" ]; then
   exit 1
 fi
 
-# Move the binary to the /usr/bin directory
-echo "Installing $BINARY_NAME to $INSTALL_DIR..."
-mv "$BINARY_NAME" "$INSTALL_DIR/"
+# Move the binary to the installation directory and rename it to the final binary name
+echo "Installing and renaming $BINARY_NAME to $FINAL_BINARY_NAME in $INSTALL_DIR..."
+mv "$BINARY_NAME" "$INSTALL_DIR/$FINAL_BINARY_NAME"
 
 # Ensure the binary is executable
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
+chmod +x "$INSTALL_DIR/$FINAL_BINARY_NAME"
 
 # Verify the installation
-if [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
-  echo "$BINARY_NAME successfully installed in $INSTALL_DIR."
+if [ -f "$INSTALL_DIR/$FINAL_BINARY_NAME" ]; then
+  echo "$FINAL_BINARY_NAME successfully installed in $INSTALL_DIR."
 else
-  echo "Error: Failed to install $BINARY_NAME."
+  echo "Error: Failed to install $FINAL_BINARY_NAME."
   exit 1
 fi
 
-echo "Installation complete. You can now run the tool using 'sanjipm'."
+echo "Installation complete. You can now run the tool using '$FINAL_BINARY_NAME'."

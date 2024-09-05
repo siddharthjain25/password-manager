@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Base URL for the binary files
-BASE_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0"
+BASE_URL="https://github.com/siddharthjain25/password-manager/releases/download/latest"
 
 # Set the target installation directory
 INSTALL_DIR="/usr/bin"

@@ -8,7 +8,9 @@ This is a simple and secure password manager script written in Bash. It allows y
 - `Delete Account`: Remove stored account details by account ID.
 - `List Accounts`: View a list of saved accounts along with their unique IDs.
 - `Encryption`: Passwords are encrypted using AES-256-CBC for security.
-- `Master Key`: An encryption key is prompted for every operation, ensuring that data cannot be accessed without the correct key.
+- `Cypher Key`: An encryption key is prompted for every operation, ensuring that data cannot be accessed without the correct key.
+- `Backup`: Generates a encrypted backup of the DB.
+- `Restore`: Restore the backed up DB and can only be decrypted by cypher ket that is set while backing up the DB.
 
 # Requirements
 - `Bash`: This script requires a Unix-like environment with Bash installed.
@@ -23,7 +25,7 @@ This is a simple and secure password manager script written in Bash. It allows y
     pkg install sqlite openssl-tool binutils
     curl -L https://raw.githubusercontent.com/siddharthjain25/password-manager/main/install_termux.sh | sh
 
-# Setup
+# Manual Setup
 Download and Install Dependencies: Ensure that SQLite and OpenSSL are installed on your system. You can install them using your package manager:
 
 ## On Ubuntu or Debian-based systems
@@ -42,53 +44,9 @@ Download and Install Dependencies: Ensure that SQLite and OpenSSL are installed 
 
 Initialize the Database: The script will automatically create the SQLite database (data.db) in the specified directory when it runs for the first time.
 
-# Usage
-You can perform various operations using this script by providing the corresponding action as a parameter.
-
-General Syntax
-
-    ./sanji_password_manager.sh {add|get|update|delete|list}
-    # Replace {add|get|update|delete|list} with the action you want to perform.
-
-# Examples
-### Add a New Account
-To add a new account with its associated details:
-
-    ./sanji_password_manager.sh add
-
-You will be prompted to enter the account details (account name, email, username, mobile number, notes, and password). After entering the details, you will also need to provide an encryption key to encrypt the password.
-
-### Retrieve an Account
-To retrieve and decrypt an account's details by its ID:
-
-    ./sanji_password_manager.sh get
-
-You will be shown a list of account IDs. After entering the account ID, you will be prompted for the encryption key to decrypt and display the details.
-
-### Update an Account
-To update an existing account's details:
-
-    ./sanji_password_manager.sh update
-
-You will be shown a list of account IDs. After entering the account ID, the script will display the current details for that account, and you will be prompted to update each field. You can press Enter to keep the current value.
-
-### Delete an Account
-To delete an account by its ID:
-
-    ./sanji_password_manager.sh delete
-
-You will be shown a list of account IDs. After entering the account ID, the account will be deleted from the database.
-
-### List All Accounts
-To view a list of all saved accounts:
-
-    ./sanji_password_manager.sh list
-
-This will display a list of all account IDs and their associated account names.
-
 ### Security Considerations
 - `Encryption`: The script uses AES-256-CBC encryption for passwords. The encryption key is prompted for every operation, ensuring that sensitive data is never stored in plain text.
-- `Master Key`: The encryption key is not saved in the script or the database, providing an additional layer of security.
+- `Cypher Key`: The encryption key is not saved in the script or the database, providing an additional layer of security.
 - `Database Storage`: All account details, except for the encrypted password, are stored in plain text in the SQLite database. Ensure that the database file (data.db) is stored securely and with appropriate permissions.
 
 # Database save location

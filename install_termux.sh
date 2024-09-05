@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Set the download URL for the binary file
-BINARY_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0/sanjipm"
-BINARY_NAME="sanjipm"
+BINARY_URL="https://github.com/siddharthjain25/password-manager/releases/download/v1.0/sanjipmt"
+BINARY_NAME="sanjipmt"
 
 # Set the target installation directory
-INSTALL_DIR="/usr/bin"
+INSTALL_DIR="/data/data/com.termux/files/usr/bin"
 
 # Ensure the script is run with root privileges
 if [ "$EUID" -ne 0 ]; then

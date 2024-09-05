@@ -19,6 +19,10 @@ This is a simple and secure password manager script written in Bash. It allows y
     sudo apt install sqlite3 openssl
     curl -L https://raw.githubusercontent.com/siddharthjain25/password-manager/main/install.sh | sudo bash
 
+# FOr single-line installation on Termux
+    pkg install sqlite openssl-tool binutils
+    curl -L https://raw.githubusercontent.com/siddharthjain25/password-manager/main/install_termux.sh | bash
+
 # Setup
 Download and Install Dependencies: Ensure that SQLite and OpenSSL are installed on your system. You can install them using your package manager:
 

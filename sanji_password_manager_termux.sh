@@ -106,6 +106,7 @@ add_password() {
     read -p "Enter mobile number: " mobile_number
     read -p "Enter notes: " notes
     read -sp "Password: " password
+    echo
     get_encryption_key
     echo
     encrypted_password=$(encrypt_password "$password" "$encryption_key")
@@ -170,14 +171,23 @@ delete_data() {
     get_encryption_key
     record=$(sqlite3 "$db_file" "SELECT password FROM accounts WHERE id = $id;")
     account_name=$(sqlite3 "$db_file" "SELECT account_name FROM accounts WHERE id = $id;")
+    
     if [ -n "$record" ]; then
         encrypted_password=$(echo "$record" | awk -F '|' '{print $1}')
         if decrypted_password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
-            if sqlite3 "$db_file" "DELETE FROM accounts WHERE id = $id;"; then
-                echo -e "${RED}User details for account $account_name deleted successfully.${NC}"
-                read -rp "Press any key to return to the menu..." -n 1
+            # Ask for confirmation before deletion
+            echo -e "${RED}Are you sure you want to delete account '$account_name' (ID: $id)? This action cannot be undone.${NC}"
+            read -p "Type 'yes' to confirm: " confirmation
+            if [ "$confirmation" == "yes" ]; then
+                if sqlite3 "$db_file" "DELETE FROM accounts WHERE id = $id;"; then
+                    echo -e "${GREEN}User details for account $account_name deleted successfully.${NC}"
+                    read -rp "Press any key to return to the menu..." -n 1
+                else
+                    echo -e "${RED}Error: Failed to delete account.${NC}"
+                fi
             else
-                echo -e "${RED}Account not found.${NC}"
+                echo -e "${YELLOW}Deletion aborted.${NC}"
+                read -rp "Press any key to return to the menu..." -n 1
             fi
         else
             echo -e "${RED}Cypher key is incorrect. Aborting deletion.${NC}"

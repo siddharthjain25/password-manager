@@ -120,44 +120,91 @@ EOF
 
 # Function to retrieve data
 get_password() {
-    echo "Saved accounts:"
-    # List accounts with null byte removal
-    echo -e "${YELLOW}"
-    sqlite3 "$db_file" "SELECT id, account_name FROM accounts;" | tr -d '\0'
-    echo -e "${NC}"
-    read -p "Enter account ID: " id
-    get_encryption_key
-    record=$(sqlite3 "$db_file" "SELECT account_name, email, username, mobile_number, notes, password FROM accounts WHERE id = $id;")
-    if [ -n "$record" ]; then
-        account_name=$(echo "$record" | tr -d '\0' | awk -F '|' '{print $1}')
-        email=$(echo "$record" | tr -d '\0' | awk -F '|' '{print $2}')
-        username=$(echo "$record" | tr -d '\0' | awk -F '|' '{print $3}')
-        mobile_number=$(echo "$record" | tr -d '\0' | awk -F '|' '{print $4}')
-        notes=$(echo "$record" | tr -d '\0' | awk -F '|' '{print $5}')
-        encrypted_password=$(echo "$record" | tr -d '\0' | awk -F '|' '{print $6}')
-        
-        if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
-            max_length=$(echo -e "$account_name\n$email\n$username\n$mobile_number\n$notes\nPassword: $password" | awk '{ if (length > max) max = length } END { print max }')
-            box_width=$((max_length + 4))
+    # Fetch all accounts and display only IDs and account names
+    mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id, account_name FROM accounts;")
+    if [ ${#accounts[@]} -eq 0 ]; then
+        echo -e "${RED}No accounts saved.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
+        return
+    fi
 
-            echo -e "${GREEN}"
+    menu_index=0
+    key=""
+
+    while true; do
+        clear
+        echo "Use up/down arrows to navigate and Enter to select an account"
+        echo "------------------------------------------------------------"
+        for i in "${!accounts[@]}"; do
+            if [ "$i" -eq "$menu_index" ]; then
+                echo -e "${YELLOW}> ${accounts[$i]}${NC}"  # Highlight the selected account
+            else
+                echo "  ${accounts[$i]}"
+            fi
+        done
+
+        # Read user input (arrow keys or Enter)
+        read -rsn1 key
+
+        # Handle arrow key input
+        if [[ $key == $'\x1b' ]]; then
+            read -rsn2 -t 0.1 key
+            if [[ $key == "[A" ]]; then
+                # Up arrow
+                ((menu_index--))
+                if [ "$menu_index" -lt 0 ]; then
+                    menu_index=$((${#accounts[@]} - 1))
+                fi
+            elif [[ $key == "[B" ]]; then
+                # Down arrow
+                ((menu_index++))
+                if [ "$menu_index" -ge "${#accounts[@]}" ]; then
+                    menu_index=0
+                fi
+            fi
+        elif [[ $key == "" ]]; then
+            # Enter key pressed, break the loop
+            break
+        fi
+    done
+
+    # Extract the selected account string
+    selected_account="${accounts[$menu_index]}"
+
+    # Extract the ID (the first field before the pipe '|')
+    account_id=$(echo "$selected_account" | awk -F '|' '{print $1}')
+
+    # Fetch account details using just the ID
+    get_encryption_key
+    record=$(sqlite3 "$db_file" "SELECT account_name, email, username, mobile_number, notes, password FROM accounts WHERE id = $account_id;")
+
+    if [ -n "$record" ]; then
+        account_name=$(echo "$record" | awk -F '|' '{print $1}')
+        email=$(echo "$record" | awk -F '|' '{print $2}')
+        username=$(echo "$record" | awk -F '|' '{print $3}')
+        mobile_number=$(echo "$record" | awk -F '|' '{print $4}')
+        notes=$(echo "$record" | awk -F '|' '{print $5}')
+        encrypted_password=$(echo "$record" | awk -F '|' '{print $6}')
+
+        if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
+            echo -e "${GREEN}Account details for $account_name:${NC}"
+            echo -e "---------------------------------"
             echo -e "Account Name: $account_name"
             echo -e "Email: $email"
             echo -e "Username: $username"
             echo -e "Mobile Number: $mobile_number"
             echo -e "Notes: $notes"
             echo -e "Password: $password"
-            echo -e "${NC}"
-            # Pause and wait for user input before clearing the screen
-            read -rp "Press any key to return to the menu..." -n 1
+            echo -e "---------------------------------"
         else
-            echo "Cypher key is incorrect. Aborting retrieval."
-            exit 1
+            echo -e "${RED}Failed to decrypt password. Incorrect cypher key.${NC}"
         fi
     else
-        echo -e "${RED}Account not found or decryption failed.${NC}"
-        read -rp "Press any key to return to the menu..." -n 1
+        echo -e "${RED}Account not found.${NC}"
     fi
+
+    # Pause and wait for user input before clearing the screen
+    read -rp "Press any key to return to the menu..." -n 1
 }
 
 # Function to delete data

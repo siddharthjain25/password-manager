@@ -18,11 +18,11 @@ This is a simple and secure password manager script written in Bash. It allows y
 - `OpenSSL`: OpenSSL is used for encrypting and decrypting passwords.
 
 # For single-line installation on supported linux distros.
-    sudo apt install sqlite3 openssl
+    sudo apt install sqlite3 openssl fzf
     curl -L https://raw.githubusercontent.com/siddharthjain25/password-manager/main/install.sh | sudo bash
 
 # For single-line installation on Termux(Android).
-    pkg install sqlite openssl-tool binutils
+    pkg install sqlite openssl-tool binutils fzf
     curl -L https://raw.githubusercontent.com/siddharthjain25/password-manager/main/install_termux.sh | sh
 
 # Manual Setup
@@ -30,10 +30,10 @@ Download and Install Dependencies: Ensure that SQLite and OpenSSL are installed 
 
 ## On Ubuntu or Debian-based systems
     sudo apt update
-    sudo apt install sqlite3 openssl
+    sudo apt install sqlite3 openssl fzf
 
 ## On Fedora-based systems
-    sudo dnf install sqlite openssl
+    sudo dnf install sqlite openssl fzf
     
 ## Clone the Repository: Download the script to your system.
     git clone https://github.com/siddharthjain25/password-manager.git

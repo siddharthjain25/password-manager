@@ -17,16 +17,11 @@ NC='\033[0m' # No Color
 # Menu options
 options=("Add a new password" "Retrieve a password" "Update a password" "Delete a password" "List all accounts" "Backup data" "Restore data" "Exit")
 
-# Function to print the menu
-print_menu() {
-    echo -e "${CYAN}Password Manager Menu:${NC}"
-    for i in "${!options[@]}"; do
-        if [ "$i" -eq "$menu_index" ]; then
-            echo -e "${YELLOW}> ${options[$i]}${NC}"  # Highlight the selected option
-        else
-            echo "  ${options[$i]}"
-        fi
-    done
+# Function to print the menu and get the user's choice using fzf
+select_option() {
+    local choice
+    choice=$(printf "%s\n" "${options[@]}" | fzf --height=100% --border --prompt="Search an option: ")
+    echo "$choice"
 }
 
 # Initialize the SQLite database if it doesn't exist
@@ -75,9 +70,11 @@ backup_data() {
 
 # Function to restore data from an encrypted backup
 restore_data() {
-    read -p "Enter the path to the encrypted backup file: " encrypted_backup_file
-    if [ ! -f "$encrypted_backup_file" ]; then
-        echo -e "${RED}No backup file found at $encrypted_backup_file.${NC}"
+    backup_files=($(ls -1 "$backup_dir"/*.enc 2>/dev/null))
+    selected_backup=$(printf "%s\n" "${backup_files[@]}" | fzf --height=100% --border --prompt="Select a backup file: " --preview "echo {}" --preview-window=up:1:wrap)
+    
+    if [ -z "$selected_backup" ]; then
+        echo -e "${RED}No backup file selected.${NC}"
         read -rp "Press any key to return to the menu..." -n 1
         return
     fi
@@ -85,7 +82,7 @@ restore_data() {
     get_encryption_key
 
     # Attempt to decrypt the backup file, suppressing error output
-    openssl enc -aes-256-cbc -d -a -pbkdf2 -in "$encrypted_backup_file" -out "$restored_db_file" -pass pass:"$encryption_key" 2>/dev/null
+    openssl enc -aes-256-cbc -d -a -pbkdf2 -in "$selected_backup" -out "$restored_db_file" -pass pass:"$encryption_key" 2>/dev/null
     
     if [ $? -ne 0 ]; then
         echo -e "${RED}Failed to decrypt backup. Please check the cypher key.${NC}"
@@ -120,6 +117,7 @@ EOF
 
 # Function to retrieve data
 get_password() {
+    clear
     # Fetch all accounts and display only IDs and account names
     mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id, account_name FROM accounts;")
     if [ ${#accounts[@]} -eq 0 ]; then
@@ -128,48 +126,13 @@ get_password() {
         return
     fi
 
-    menu_index=0
-    key=""
+    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --border --prompt="Search an account: " --preview "echo {}" --preview-window=up:1:wrap)
 
-    while true; do
-        clear
-        echo "Use up/down arrows to navigate and Enter to select an account"
-        echo "------------------------------------------------------------"
-        for i in "${!accounts[@]}"; do
-            if [ "$i" -eq "$menu_index" ]; then
-                echo -e "${YELLOW}> ${accounts[$i]}${NC}"  # Highlight the selected account
-            else
-                echo "  ${accounts[$i]}"
-            fi
-        done
-
-        # Read user input (arrow keys or Enter)
-        read -rsn1 key
-
-        # Handle arrow key input
-        if [[ $key == $'\x1b' ]]; then
-            read -rsn2 -t 0.1 key
-            if [[ $key == "[A" ]]; then
-                # Up arrow
-                ((menu_index--))
-                if [ "$menu_index" -lt 0 ]; then
-                    menu_index=$((${#accounts[@]} - 1))
-                fi
-            elif [[ $key == "[B" ]]; then
-                # Down arrow
-                ((menu_index++))
-                if [ "$menu_index" -ge "${#accounts[@]}" ]; then
-                    menu_index=0
-                fi
-            fi
-        elif [[ $key == "" ]]; then
-            # Enter key pressed, break the loop
-            break
-        fi
-    done
-
-    # Extract the selected account string
-    selected_account="${accounts[$menu_index]}"
+    if [ -z "$selected_account" ]; then
+        echo -e "${RED}No account selected.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
+        return
+    fi
 
     # Extract the ID (the first field before the pipe '|')
     account_id=$(echo "$selected_account" | awk -F '|' '{print $1}')
@@ -209,53 +172,75 @@ get_password() {
 
 # Function to delete data
 delete_data() {
-    echo "Saved accounts:"
-    # List accounts with null byte removal
-    echo -e "${YELLOW}"
-    sqlite3 "$db_file" "SELECT id, account_name FROM accounts;" | tr -d '\0'
-    echo -e "${NC}"
-    read -p "Enter account ID: " id
+    # List accounts for selection
+    mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id, account_name FROM accounts;")
+    if [ ${#accounts[@]} -eq 0 ]; then
+        echo -e "${RED}No accounts saved.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
+        return
+    fi
+
+    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --border --prompt="Search & select an account to delete: " --preview "echo {}" --preview-window=up:1:wrap)
+
+    if [ -z "$selected_account" ]; then
+        echo -e "${RED}No account selected.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
+        return
+    fi
+
+    # Extract the ID (the first field before the pipe '|')
+    account_id=$(echo "$selected_account" | awk -F '|' '{print $1}')
+
     get_encryption_key
-    record=$(sqlite3 "$db_file" "SELECT password FROM accounts WHERE id = $id;")
-    account_name=$(sqlite3 "$db_file" "SELECT account_name FROM accounts WHERE id = $id;")
+    record=$(sqlite3 "$db_file" "SELECT password FROM accounts WHERE id = $account_id;")
+    account_name=$(sqlite3 "$db_file" "SELECT account_name FROM accounts WHERE id = $account_id;")
     
     if [ -n "$record" ]; then
         encrypted_password=$(echo "$record" | awk -F '|' '{print $1}')
-        if decrypted_password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
-            # Ask for confirmation before deletion
-            echo -e "${RED}Are you sure you want to delete account '$account_name' (ID: $id)? This action cannot be undone.${NC}"
-            read -p "Type 'yes' to confirm: " confirmation
-            if [ "$confirmation" == "yes" ]; then
-                if sqlite3 "$db_file" "DELETE FROM accounts WHERE id = $id;"; then
-                    echo -e "${GREEN}User details for account $account_name deleted successfully.${NC}"
-                    read -rp "Press any key to return to the menu..." -n 1
-                else
-                    echo -e "${RED}Error: Failed to delete account.${NC}"
-                fi
+
+        if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
+            read -p "Are you sure you want to delete the account '$account_name'? (y/n): " confirm
+            if [[ $confirm == [yY] ]]; then
+                sqlite3 "$db_file" "DELETE FROM accounts WHERE id = $account_id;"
+                echo -e "${GREEN}Account $account_name deleted.${NC}"
             else
-                echo -e "${YELLOW}Deletion aborted.${NC}"
-                read -rp "Press any key to return to the menu..." -n 1
+                echo -e "${RED}Deletion aborted.${NC}"
             fi
         else
             echo -e "${RED}Cypher key is incorrect. Aborting deletion.${NC}"
-            exit 1
         fi
     else
         echo -e "${RED}Account not found or decryption failed.${NC}"
         read -rp "Press any key to return to the menu..." -n 1
     fi
+
+    # Pause and wait for user input before clearing the screen
+    read -rp "Press any key to return to the menu..." -n 1
 }
 
 # Function to update data
 update_password() {
-    echo "Saved accounts:"
-    # List accounts with null byte removal
-    echo -e "${YELLOW}"
-    sqlite3 "$db_file" "SELECT id, account_name FROM accounts;" | tr -d '\0'
-    echo -e "${NC}"
-    read -p "Enter account ID: " id
+    # List accounts for selection
+    mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id, account_name FROM accounts;")
+    if [ ${#accounts[@]} -eq 0 ]; then
+        echo -e "${RED}No accounts saved.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
+        return
+    fi
+
+    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --border --prompt="Search and select an account to update: " --preview "echo {}" --preview-window=up:1:wrap)
+
+    if [ -z "$selected_account" ]; then
+        echo -e "${RED}No account selected.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
+        return
+    fi
+
+    # Extract the ID (the first field before the pipe '|')
+    account_id=$(echo "$selected_account" | awk -F '|' '{print $1}')
+
     get_encryption_key
-    record=$(sqlite3 "$db_file" "SELECT account_name, email, username, mobile_number, notes, password FROM accounts WHERE id = $id;")
+    record=$(sqlite3 "$db_file" "SELECT account_name, email, username, mobile_number, notes, password FROM accounts WHERE id = $account_id;")
     if [ -n "$record" ]; then
         account_name=$(echo "$record" | awk -F '|' '{print $1}')
         email=$(echo "$record" | awk -F '|' '{print $2}')
@@ -265,15 +250,15 @@ update_password() {
         encrypted_password=$(echo "$record" | awk -F '|' '{print $6}')
         
         if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
-            echo "Current details for account ID '$id':"
-            echo "--------------------------------------"
-            echo "Account Name: $account_name"
-            echo "Email: $email"
-            echo "Username: $username"
-            echo "Mobile Number: $mobile_number"
-            echo "Notes: $notes"
-            echo "Password: $password"
-            echo "--------------------------------------"
+            echo -e "Current details for account ID '$account_id':"
+            echo -e "--------------------------------------"
+            echo -e "Account Name: $account_name"
+            echo -e "Email: $email"
+            echo -e "Username: $username"
+            echo -e "Mobile Number: $mobile_number"
+            echo -e "Notes: $notes"
+            echo -e "Password: $password"
+            echo -e "--------------------------------------"
 
             read -p "Enter new account name [$account_name]: " new_account_name
             read -p "Enter new email [$email]: " new_email
@@ -302,7 +287,7 @@ SET account_name = '$new_account_name',
     mobile_number = '$new_mobile_number',
     notes = '$new_notes',
     password = '$encrypted_password'
-WHERE id = $id;
+WHERE id = $account_id;
 EOF
             echo -e "${GREEN}Details updated for account $new_account_name.${NC}"
 
@@ -310,10 +295,11 @@ EOF
             read -rp "Press any key to return to the menu..." -n 1
         else
             echo -e "${RED}Cypher key is incorrect. Aborting update.${NC}"
-            exit 1
+            read -rp "Press any key to return to the menu..." -n 1
         fi
     else
-        echo "${RED}Account not found or decryption failed.${NC}"
+        echo -e "${RED}Account not found or decryption failed.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
     fi
 }
 
@@ -322,62 +308,40 @@ list_accounts() {
     if [ -s "$db_file" ]; then
         echo -e "Saved accounts:"
         # List accounts with null byte removal
-        echo -e "${YELLOW}"
-        sqlite3 "$db_file" "SELECT id, account_name FROM accounts;" | tr -d '\0'
-        echo -e "${NC}"
+        mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id, account_name FROM accounts;" | tr -d '\0')
+        if [ ${#accounts[@]} -eq 0 ]; then
+            echo -e "${RED}No accounts saved.${NC}"
+        else
+            printf "%s\n" "${accounts[@]}" | fzf --height=100% --border | read -rp "Press any key to return to the menu..." -n 1
+        fi
     else
-        echo -e "${RED}No accounts saved ${NC}"
+        echo -e "${RED}No accounts saved.${NC}"
     fi
 
     # Pause and wait for user input before clearing the screen
-    read -rp "Press any key to return to the menu..." -n 1
+    
 }
 
 # Initialize the database if not exists
 initialize_db
 
-# Function to handle the menu selection
-handle_menu_selection() {
-    case $menu_index in
-        0) add_password ;;
-        1) get_password ;;
-        2) update_password ;;
-        3) delete_data ;;
-        4) list_accounts ;;
-        5) backup_data ;;
-        6) restore_data ;;
-        7) exit 0 ;;
-    esac
-}
-
-# Main menu loop
-menu_index=0
-key=""
+# Main menu loop with fzf integration
 while true; do
     clear
-    print_menu
-
-    # Read user input
-    read -rsn1 key  # Read a single character
-
-    # Handle arrow key input
-    if [[ $key == $'\x1b' ]]; then
-        read -rsn2 -t 0.1 key  # Read 2 more characters (for arrow keys)
-        if [[ $key == "[A" ]]; then
-            # Up arrow
-            ((menu_index--))
-            if [ "$menu_index" -lt 0 ]; then
-                menu_index=$((${#options[@]} - 1))
-            fi
-        elif [[ $key == "[B" ]]; then
-            # Down arrow
-            ((menu_index++))
-            if [ "$menu_index" -ge "${#options[@]}" ]; then
-                menu_index=0
-            fi
-        fi
-    elif [[ $key == "" ]]; then
-        # Enter key
-        handle_menu_selection
-    fi
+    echo -e "${CYAN}Password Manager Menu:${NC}"
+    
+    # Print menu options and get user selection using fzf
+    selection=$(select_option)
+    
+    case "$selection" in
+        "Add a new password") add_password ;;
+        "Retrieve a password") get_password ;;
+        "Update a password") update_password ;;
+        "Delete a password") delete_data ;;
+        "List all accounts") list_accounts ;;
+        "Backup data") backup_data ;;
+        "Restore data") restore_data ;;
+        "Exit") clear && exit 0 ;;
+        *) echo -e "${RED}Invalid selection. Please try again.${NC}";;
+    esac
 done

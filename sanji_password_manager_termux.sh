@@ -20,7 +20,7 @@ options=("Add a new password" "Retrieve a password" "Update a password" "Delete 
 # Function to print the menu and get the user's choice using fzf
 select_option() {
     local choice
-    choice=$(printf "%s\n" "${options[@]}" | fzf --height=100% --border --prompt="Search an option: ")
+    choice=$(printf "%s\n" "${options[@]}" | fzf --height=100% --cycle --tac --border=bold --prompt="Search an option: ")
     echo "$choice"
 }
 
@@ -71,8 +71,8 @@ backup_data() {
 # Function to restore data from an encrypted backup
 restore_data() {
     backup_files=($(ls -1 "$backup_dir"/*.enc 2>/dev/null))
-    selected_backup=$(printf "%s\n" "${backup_files[@]}" | fzf --height=100% --border --prompt="Select a backup file: " --preview "echo {}" --preview-window=up:1:wrap)
-    
+    selected_backup=$(printf "%s\n" "${backup_files[@]}" | fzf --height=100% --border=bold --prompt="Select a backup file: " --preview "echo {}" --preview-window=up:1:wrap)
+
     if [ -z "$selected_backup" ]; then
         echo -e "${RED}No backup file selected.${NC}"
         read -rp "Press any key to return to the menu..." -n 1
@@ -83,7 +83,7 @@ restore_data() {
 
     # Attempt to decrypt the backup file, suppressing error output
     openssl enc -aes-256-cbc -d -a -pbkdf2 -in "$selected_backup" -out "$restored_db_file" -pass pass:"$encryption_key" 2>/dev/null
-    
+
     if [ $? -ne 0 ]; then
         echo -e "${RED}Failed to decrypt backup. Please check the cypher key.${NC}"
         read -rp "Press any key to return to the menu..." -n 1
@@ -95,22 +95,22 @@ restore_data() {
     read -rp "Press any key to return to the menu..." -n 1
 }
 
-# Function to add user data
 add_password() {
-    read -p "Enter account name: " account_name
-    read -p "Enter email: " email
-    read -p "Enter username: " username
-    read -p "Enter mobile number: " mobile_number
-    read -p "Enter notes: " notes
-    read -sp "Password: " password
-    echo
+    account_name=$(printf "" | fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter account name: " --print-query --expect=enter | head -n 1)
+    email=$(printf "Account name: $account_name" | fzf --height=100% --no-mouse --disabled --tac --border=bold --prompt="Enter email: " --print-query --expect=enter | head -n 1)
+    username=$(printf "Account name: $account_name\nEmail: $email" | fzf --height=100% --no-mouse --disabled --tac --border=bold --prompt="Enter username: " --print-query --expect=enter | head -n 1)
+    mobile_number=$(printf "Account name: $account_name\nEmail: $email\nUsername: $username" | fzf --height=100% --no-mouse --disabled --tac --border=bold --prompt="Enter mobile number: " --print-query --expect=enter | head -n 1)
+    notes=$(printf "Account name: $account_name\nEmail: $email\nUsername: $username\nMobile Number: $mobile_number" | fzf --height=100% --no-mouse --disabled --tac --border=bold --prompt="Enter notes (optional): " --print-query --expect=enter | head -n 1)
+    password=$(printf "Account name: $account_name\nEmail: $email\nUsername: $username\nMobile Number: $mobile_number\nNotes: $notes" | fzf --height=100% --no-mouse --disabled --tac --border=bold --prompt="Password: " --print-query --expect=enter | head -n 1)
+    
     get_encryption_key
-    echo
     encrypted_password=$(encrypt_password "$password" "$encryption_key")
+    
     sqlite3 "$db_file" <<EOF
 INSERT INTO accounts (account_name, email, username, mobile_number, notes, password)
 VALUES ('$account_name', '$email', '$username', '$mobile_number', '$notes', '$encrypted_password');
 EOF
+
     echo -e "${GREEN}Details for $account_name saved.${NC}"
     read -rp "Press any key to return to the menu..." -n 1
 }
@@ -126,7 +126,7 @@ get_password() {
         return
     fi
 
-    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --border --prompt="Search an account: " --preview "echo {}" --preview-window=up:1:wrap)
+    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --cycle --tac --border=bold --prompt="Search an account: " --preview "echo {}" --preview-window=up:1:wrap)
 
     if [ -z "$selected_account" ]; then
         echo -e "${RED}No account selected.${NC}"
@@ -150,24 +150,15 @@ get_password() {
         encrypted_password=$(echo "$record" | awk -F '|' '{print $6}')
 
         if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
-            echo -e "${GREEN}Account details for $account_name:${NC}"
-            echo -e "---------------------------------"
-            echo -e "Account Name: $account_name"
-            echo -e "Email: $email"
-            echo -e "Username: $username"
-            echo -e "Mobile Number: $mobile_number"
-            echo -e "Notes: $notes"
-            echo -e "Password: $password"
-            echo -e "---------------------------------"
+            printf "%s\n" "Account details for $account_name:" "Account Name: ${account_name}" "Email: ${email}" "Username: ${username}" "Mobile Number: ${mobile_number}" "Notes: ${notes}" "Password: ${password}" | fzf --tac --height=100% --cycle --border=bold --no-mouse --prompt="Press any key to return to the menu..." 
         else
             echo -e "${RED}Failed to decrypt password. Incorrect cypher key.${NC}"
+            read -rp "Press any key to return to the menu..." -n 1
         fi
     else
         echo -e "${RED}Account not found.${NC}"
+        read -rp "Press any key to return to the menu..." -n 1
     fi
-
-    # Pause and wait for user input before clearing the screen
-    read -rp "Press any key to return to the menu..." -n 1
 }
 
 # Function to delete data
@@ -180,9 +171,10 @@ delete_data() {
         return
     fi
 
-    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --border --prompt="Search & select an account to delete: " --preview "echo {}" --preview-window=up:1:wrap)
+    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --cycle --tac --border=bold --prompt="Search & select an account to delete: " --preview "echo {}" --preview-window=up:1:wrap)
 
     if [ -z "$selected_account" ]; then
+        clear
         echo -e "${RED}No account selected.${NC}"
         read -rp "Press any key to return to the menu..." -n 1
         return
@@ -194,7 +186,7 @@ delete_data() {
     get_encryption_key
     record=$(sqlite3 "$db_file" "SELECT password FROM accounts WHERE id = $account_id;")
     account_name=$(sqlite3 "$db_file" "SELECT account_name FROM accounts WHERE id = $account_id;")
-    
+
     if [ -n "$record" ]; then
         encrypted_password=$(echo "$record" | awk -F '|' '{print $1}')
 
@@ -218,17 +210,16 @@ delete_data() {
     read -rp "Press any key to return to the menu..." -n 1
 }
 
-# Function to update data
 update_password() {
     # List accounts for selection
-    mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id, account_name FROM accounts;")
+    mapfile -t accounts < <(sqlite3 "$db_file" "SELECT id || ' | ' || account_name FROM accounts;")
     if [ ${#accounts[@]} -eq 0 ]; then
         echo -e "${RED}No accounts saved.${NC}"
         read -rp "Press any key to return to the menu..." -n 1
         return
     fi
 
-    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --border --prompt="Search and select an account to update: " --preview "echo {}" --preview-window=up:1:wrap)
+    selected_account=$(printf "%s\n" "${accounts[@]}" | fzf --height=100% --tac --cycle --border=bold --prompt="Search and select an account to update: " --preview "echo {}" --preview-window=up:1:wrap)
 
     if [ -z "$selected_account" ]; then
         echo -e "${RED}No account selected.${NC}"
@@ -237,36 +228,21 @@ update_password() {
     fi
 
     # Extract the ID (the first field before the pipe '|')
-    account_id=$(echo "$selected_account" | awk -F '|' '{print $1}')
+    account_id=$(echo "$selected_account" | awk -F ' | ' '{print $1}')
 
     get_encryption_key
     record=$(sqlite3 "$db_file" "SELECT account_name, email, username, mobile_number, notes, password FROM accounts WHERE id = $account_id;")
     if [ -n "$record" ]; then
-        account_name=$(echo "$record" | awk -F '|' '{print $1}')
-        email=$(echo "$record" | awk -F '|' '{print $2}')
-        username=$(echo "$record" | awk -F '|' '{print $3}')
-        mobile_number=$(echo "$record" | awk -F '|' '{print $4}')
-        notes=$(echo "$record" | awk -F '|' '{print $5}')
-        encrypted_password=$(echo "$record" | awk -F '|' '{print $6}')
-        
-        if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
-            echo -e "Current details for account ID '$account_id':"
-            echo -e "--------------------------------------"
-            echo -e "Account Name: $account_name"
-            echo -e "Email: $email"
-            echo -e "Username: $username"
-            echo -e "Mobile Number: $mobile_number"
-            echo -e "Notes: $notes"
-            echo -e "Password: $password"
-            echo -e "--------------------------------------"
+        IFS='|' read -r account_name email username mobile_number notes encrypted_password <<< "$record"
 
-            read -p "Enter new account name [$account_name]: " new_account_name
-            read -p "Enter new email [$email]: " new_email
-            read -p "Enter new username [$username]: " new_username
-            read -p "Enter new mobile number [$mobile_number]: " new_mobile_number
-            read -p "Enter new notes [$notes]: " new_notes
-            read -sp "Enter new password (press Enter to keep current): " new_password
-            echo
+        if password=$(decrypt_password "$encrypted_password" "$encryption_key" 2>/dev/null); then
+
+            new_account_name=$(fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter new account name (press Enter to keep current): " --print-query --expect=enter <<< "Current account name: $account_name" | head -n 1)
+            new_email=$(fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter new email (press Enter to keep current): " --print-query --expect=enter <<< "Current email: $email" | head -n 1)
+            new_username=$(fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter new username (press Enter to keep current): " --print-query --expect=enter <<< "Current username: $username" | head -n 1)
+            new_mobile_number=$(fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter new mobile number (press Enter to keep current): " --print-query --expect=enter <<< "Current mobile number: $mobile_number" | head -n 1)
+            new_notes=$(fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter new note (optional): " --print-query --expect=enter <<< "Current note: $notes" | head -n 1)
+            new_password=$(fzf --height=100% --no-mouse --disabled --border=bold --prompt="Enter new password (press Enter to keep current): " --print-query --expect=enter <<< "Current password: $password" | head -n 1)
 
             new_account_name=${new_account_name:-$account_name}
             new_email=${new_email:-$email}
@@ -275,8 +251,6 @@ update_password() {
             new_notes=${new_notes:-$notes}
             if [ -n "$new_password" ]; then
                 encrypted_password=$(encrypt_password "$new_password" "$encryption_key")
-            else
-                encrypted_password=$encrypted_password
             fi
 
             sqlite3 "$db_file" <<EOF
@@ -312,14 +286,11 @@ list_accounts() {
         if [ ${#accounts[@]} -eq 0 ]; then
             echo -e "${RED}No accounts saved.${NC}"
         else
-            printf "%s\n" "${accounts[@]}" | fzf --height=100% --border | read -rp "Press any key to return to the menu..." -n 1
+            printf "%s\n" "${accounts[@]}" | fzf --height=100% --disabled --tac --border=bold --prompt="Press ENTER key to return to the menu..."
         fi
     else
         echo -e "${RED}No accounts saved.${NC}"
     fi
-
-    # Pause and wait for user input before clearing the screen
-    
 }
 
 # Initialize the database if not exists
@@ -328,20 +299,18 @@ initialize_db
 # Main menu loop with fzf integration
 while true; do
     clear
-    echo -e "${CYAN}Password Manager Menu:${NC}"
-    
     # Print menu options and get user selection using fzf
     selection=$(select_option)
-    
+
     case "$selection" in
-        "Add a new password") add_password ;;
-        "Retrieve a password") get_password ;;
-        "Update a password") update_password ;;
-        "Delete a password") delete_data ;;
-        "List all accounts") list_accounts ;;
-        "Backup data") backup_data ;;
-        "Restore data") restore_data ;;
-        "Exit") clear && exit 0 ;;
-        *) echo -e "${RED}Invalid selection. Please try again.${NC}";;
+    "Add a new password") add_password ;;
+    "Retrieve a password") get_password ;;
+    "Update a password") update_password ;;
+    "Delete a password") delete_data ;;
+    "List all accounts") list_accounts ;;
+    "Backup data") backup_data ;;
+    "Restore data") restore_data ;;
+    "Exit") clear && exit 0 ;;
+    *) echo -e "${RED}Invalid selection. Please try again.${NC}" ;;
     esac
 done
